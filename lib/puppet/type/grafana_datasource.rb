@@ -52,7 +52,7 @@ Puppet::Type.newtype(:grafana_datasource) do
 
   newproperty(:type) do
     desc 'The datasource type'
-    newvalues(:influxdb, :elasticsearch, :graphite, :kairosdb, :opentsdb, :prometheus, :"Prometheus Alertmanager")
+    newvalues(:influxdb, :elasticsearch, :graphite, :kairosdb, :opentsdb, :prometheus, :camptocamp-prometheus-alertmanager-datasource)
   end
 
   newproperty(:user) do
