@@ -13,7 +13,7 @@ class grafana::install {
     $real_package_source = $grafana::package_source
   }
   else {
-    $real_package_source = $facts['os']['family'] ? {
+    $real_package_source = $::osfamily ? {
       /(RedHat|Amazon)/ => "${base_url}/grafana-${grafana::version}-${grafana::rpm_iteration}.x86_64.rpm",
       'Debian'          => "${base_url}/grafana_${grafana::version}_amd64.deb",
       default           => $real_archive_source,
@@ -72,7 +72,7 @@ class grafana::install {
       }
     }
     'repo': {
-      case $facts['os']['family'] {
+      case $::osfamily {
         'Debian': {
           package { 'libfontconfig1':
             ensure => present,
