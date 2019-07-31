@@ -1,11 +1,12 @@
 # == Class grafana::install
 #
 class grafana::install {
+  $base_url = 'https://dl.grafana.com/oss/release'
   if $::grafana::archive_source != undef {
     $real_archive_source = $::grafana::archive_source
   }
   else {
-    $real_archive_source = "https://grafanarel.s3.amazonaws.com/builds/grafana-${::grafana::version}.linux-x64.tar.gz"
+    $real_archive_source = "${base_url}/grafana-${::grafana::version}.linux-amd64.tar.gz"
   }
 
   if $::grafana::package_source != undef {
@@ -13,8 +14,8 @@ class grafana::install {
   }
   else {
     $real_package_source = $::osfamily ? {
-      /(RedHat|Amazon)/ => "https://grafanarel.s3.amazonaws.com/builds/grafana-${::grafana::version}-${::grafana::rpm_iteration}.x86_64.rpm",
-      'Debian'          => "https://grafanarel.s3.amazonaws.com/builds/grafana_${::grafana::version}_amd64.deb",
+      /(RedHat|Amazon)/ => "${base_url}/grafana-${::grafana::version}-${::grafana::rpm_iteration}.x86_64.rpm",
+      'Debian'          => "${base_url}/grafana_${::grafana::version}_amd64.deb",
       default           => $real_archive_source,
     }
   }
@@ -33,16 +34,16 @@ class grafana::install {
             ensure => present,
           }
 
-          wget::fetch { 'grafana':
-            source      => $real_package_source,
-            destination => '/tmp/grafana.deb',
+          archive { '/tmp/grafana.deb':
+            source  => $real_package_source,
           }
 
-          package { $::grafana::package_name:
+          package { 'grafana':
             ensure   => present,
+            name     => $::grafana::package_name,
             provider => 'dpkg',
             source   => '/tmp/grafana.deb',
-            require  => [Wget::Fetch['grafana'],Package['libfontconfig1']],
+            require  => [Archive['/tmp/grafana.deb'],Package['libfontconfig1']],
           }
         }
         'RedHat': {
@@ -50,15 +51,23 @@ class grafana::install {
             ensure => present,
           }
 
-          package { $::grafana::package_name:
+          package { 'grafana':
             ensure   => present,
+            name     => $::grafana::package_name,
             provider => 'rpm',
             source   => $real_package_source,
             require  => Package['fontconfig'],
           }
         }
+        'FreeBSD': {
+          package { 'grafana':
+            ensure   => present,
+            name     => $::grafana::package_name,
+            provider => 'pkgng',
+          }
+        }
         default: {
-          fail("${::operatingsystem} not supported")
+          fail("${::osfamily} not supported")
         }
       }
     }
@@ -71,23 +80,25 @@ class grafana::install {
 
           if ( $::grafana::manage_package_repo ){
             if !defined( Class['apt'] ) {
-              class { '::apt': }
+              include apt
             }
             apt::source { 'grafana':
-              location => "https://packagecloud.io/grafana/${::grafana::repo_name}/debian",
-              release  => $::lsbdistcodename,
-              repos    => 'main',
-              key      =>  {
-                'id'     => '418A7F2FB0E1E6E7EABF6FE8C2E73424D59097AB',
-                'source' => 'https://packagecloud.io/gpg.key',
+              location     => 'https://packages.grafana.com/oss/deb',
+              release      => $::grafana::repo_name,
+              architecture => 'amd64,arm64,armhf',
+              repos        => 'main',
+              key          =>  {
+                'id'     => '4E40DDF6D76E284A4A6780E48C8C34C524098CB6',
+                'source' => 'https://packages.grafana.com/gpg.key',
               },
-              before   => Package[$::grafana::package_name],
+              before       => Package['grafana'],
             }
-            Class['apt::update'] -> Package[$::grafana::package_name]
+            Class['apt::update'] -> Package['grafana']
           }
 
-          package { $::grafana::package_name:
+          package { 'grafana':
             ensure  => $::grafana::version,
+            name    => $::grafana::package_name,
             require => Package['libfontconfig1'],
           }
         }
@@ -97,13 +108,24 @@ class grafana::install {
           }
 
           if ( $::grafana::manage_package_repo ){
+            # http://docs.grafana.org/installation/rpm/#install-via-yum-repository
+            $baseurl = $::grafana::repo_name ? {
+              'stable' => 'https://packages.grafana.com/oss/rpm',
+              'beta'   => 'https://packages.grafana.com/oss/rpm-beta',
+            }
+
             yumrepo { 'grafana':
-              descr    => 'grafana repo',
-              baseurl  => "https://packagecloud.io/grafana/${::grafana::repo_name}/el/${::operatingsystemmajrelease}/\$basearch",
+              ensure => 'absent',
+              before => Package['grafana'],
+            }
+
+            yumrepo { "grafana-${::grafana::repo_name}":
+              descr    => "grafana-${::grafana::repo_name} repo",
+              baseurl  => $baseurl,
               gpgcheck => 1,
-              gpgkey   => 'https://packagecloud.io/gpg.key https://grafanarel.s3.amazonaws.com/RPM-GPG-KEY-grafana',
+              gpgkey   => 'https://packages.grafana.com/gpg.key',
               enabled  => 1,
-              before   => Package[$::grafana::package_name],
+              before   => Package['grafana'],
             }
           }
 
@@ -113,8 +135,9 @@ class grafana::install {
             $real_version = "${::grafana::version}-${::grafana::rpm_iteration}"
           }
 
-          package { $::grafana::package_name:
+          package { 'grafana':
             ensure  => $real_version,
+            name    => $::grafana::package_name,
             require => Package['fontconfig'],
           }
         }
@@ -122,12 +145,19 @@ class grafana::install {
           if $::grafana::manage_package_repo {
             fail('manage_package_repo is not supported on Archlinux')
           }
-          package { $::grafana::package_name:
-            ensure  => 'present', # pacman provider doesn't have feature versionable
+          package { 'grafana':
+            ensure => 'present', # pacman provider doesn't have feature versionable
+            name   => $::grafana::package_name,
+          }
+        }
+        'FreeBSD': {
+          package { 'grafana':
+            ensure => 'present', # pkgng provider doesn't have feature versionable
+            name   => $::grafana::package_name,
           }
         }
         default: {
-          fail("${::operatingsystem} not supported")
+          fail("${::osfamily} not supported")
         }
       }
     }
