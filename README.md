@@ -1,5 +1,11 @@
 # grafana
 
+## This is a bede modified fork of the grafana module.
+
+## Bede modifications are based on v2.6, the last version to support puppet 3
+
+## Use master-bede as the master branch when branching and updating and create a release version using the format v2.6.x-bede
+
 [![Build Status](https://travis-ci.org/voxpupuli/puppet-grafana.png?branch=master)](https://travis-ci.org/voxpupuli/puppet-grafana)
 [![Code Coverage](https://coveralls.io/repos/github/voxpupuli/puppet-grafana/badge.svg?branch=master)](https://coveralls.io/github/voxpupuli/puppet-grafana)
 [![Puppet Forge](https://img.shields.io/puppetforge/v/puppet/grafana.svg)](https://forge.puppetlabs.com/puppet/grafana)
